@@ -1,5 +1,36 @@
 from PIL import Image
 from reportlab.lib.units import mm
+import math
+
+TARGET_DPI = 300
+
+
+def mm_to_px(mm_val):
+    return int(round(mm_val / 25.4 * TARGET_DPI))
+
+
+def fit_image(img, width, height):
+    img = img.convert("RGB")
+    scale = width / max(img.width, img.height)
+    new_w = max(1, int(round(img.width * scale)))
+    new_h = max(1, int(round(img.height * scale)))
+    img = img.resize((new_w, new_h), Image.LANCZOS)
+    square = Image.new("RGB", (width, height), (255, 255, 255))
+    square.paste(img, ((width - new_w) // 2, (height - new_h) // 2))
+    return square
+
+
+def fit_image_in_circle(img, diameter_px, margin_pct=0.0):
+    img = img.convert("RGB")
+    safe_diagonal_px = diameter_px * (1 - margin_pct)
+    diag = math.hypot(img.width, img.height)
+    scale = safe_diagonal_px / diag
+    new_w = max(1, int(round(img.width * scale)))
+    new_h = max(1, int(round(img.height * scale)))
+    img = img.resize((new_w, new_h), Image.LANCZOS)
+    canvas = Image.new("RGB", (diameter_px, diameter_px), (255, 255, 255))
+    canvas.paste(img, ((diameter_px - new_w) // 2, (diameter_px - new_h) // 2))
+    return canvas
 
 
 def clean_symbol(img, threshold=30, margin_pct=0.02):
@@ -73,24 +104,44 @@ def draw_square(c, x, y, w, h, img_path, internal_margin_mm=0):
     c.rect(x * mm, y * mm, w * mm, h * mm)
     img = Image.open(img_path)
     img = clean_symbol(img)
+    draw_w = w - 2 * internal_margin_mm
+    draw_h = h - 2 * internal_margin_mm
+    draw_w_px = mm_to_px(draw_w)
+    draw_h_px = mm_to_px(draw_h)
+    img = fit_image(img, draw_w_px, draw_h_px)
     import tempfile, os
     fd, tmp = tempfile.mkstemp(suffix=".png")
     os.close(fd)
     img.save(tmp)
-    draw_w = w - 2 * internal_margin_mm
-    draw_h = h - 2 * internal_margin_mm
     c.drawImage(
         tmp,
         (x + internal_margin_mm) * mm,
         (y + internal_margin_mm) * mm,
         width=draw_w * mm,
         height=draw_h * mm,
-        preserveAspectRatio=True,
+        preserveAspectRatio=False,
     )
     os.remove(tmp)
 
 
-def draw_circle(c, x, y, size_mm, img_path, internal_margin_mm=0):
+def draw_circle(c, x, y, size_mm, img_path, internal_margin_pct=0.0):
+    import tempfile, os
+    img = Image.open(img_path)
+    img = clean_symbol(img)
+    diameter_px = mm_to_px(size_mm)
+    img = fit_image_in_circle(img, diameter_px, internal_margin_pct)
+    fd, tmp = tempfile.mkstemp(suffix=".png")
+    os.close(fd)
+    img.save(tmp)
+    c.drawImage(
+        tmp,
+        x * mm,
+        y * mm,
+        width=size_mm * mm,
+        height=size_mm * mm,
+        preserveAspectRatio=False,
+    )
+    os.remove(tmp)
     from reportlab.lib.colors import black
     c.setStrokeColor(black)
     c.setLineWidth(1)
@@ -101,19 +152,3 @@ def draw_circle(c, x, y, size_mm, img_path, internal_margin_mm=0):
         stroke=1,
         fill=0,
     )
-    img = Image.open(img_path)
-    img = clean_symbol(img)
-    import tempfile, os
-    fd, tmp = tempfile.mkstemp(suffix=".png")
-    os.close(fd)
-    img.save(tmp)
-    draw_size = size_mm - 2 * internal_margin_mm
-    c.drawImage(
-        tmp,
-        (x + internal_margin_mm) * mm,
-        (y + internal_margin_mm) * mm,
-        width=draw_size * mm,
-        height=draw_size * mm,
-        preserveAspectRatio=True,
-    )
-    os.remove(tmp)
