@@ -4,9 +4,9 @@ from reportlab.pdfgen import canvas
 from symbol_pdf import compute_grid, cell_xy, draw_circle, draw_header
 
 IMAGE_FOLDER = "images"
-OUTPUT_PDF = "circle_3.pdf"
+OUTPUT_PDF = "circle_3.5.pdf"
 
-DIAMETER_MM = 30
+DIAMETER_MM = 35
 GAP_MM = 10
 MARGIN_MM = 20
 INTERNAL_MARGIN_PCT = 0.02
@@ -14,7 +14,7 @@ INTERNAL_MARGIN_PCT = 0.02
 PAGE_WIDTH_MM = 210
 PAGE_HEIGHT_MM = 297
 
-HEADER = "circle 3cm x 4"
+HEADER = "circle 3.5cm no border x 1"
 HEADER_Y_MM = 15
 
 images = sorted([f for f in os.listdir(IMAGE_FOLDER) if f.lower().endswith(".png")])
