@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from PIL import Image
+import scipy.ndimage
 
 INPUT_FOLDER = "images"
 OUTPUT_FOLDER = "output_contouren"
@@ -30,6 +31,7 @@ def extract_contours(img_path, output_path):
 
     out = np.zeros((h, w, 4), dtype=np.uint8)
     keep = (gray < DARK_THRESHOLD) & ~bg_mask
+    keep = scipy.ndimage.binary_closing(keep, structure=np.ones((3, 3)))
     out[keep] = [0, 0, 0, 255]
 
     Image.fromarray(out, mode="RGBA").save(output_path)
