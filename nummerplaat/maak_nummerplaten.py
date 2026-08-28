@@ -5,10 +5,20 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Rectangle
 import numpy as np
 import os
+import re
 
-
+# --- Namen uit bestand ---
+NAMES = []
+with open(os.path.join(os.path.dirname(__file__), "namen.txt"), "r", encoding="utf-8") as f:
+    content = f.read()
+    # Extract quoted strings
+    matches = re.findall(r'"([^"]+)"', content)
+    NAMES = matches
 
 first_names = [name.split()[0].upper() for name in NAMES]
+longest_name = max(first_names, key=len)
+print(f"Gelezen namen: {len(NAMES)}")
+print(f"Langste voornaam: {longest_name}")
 
 # --- Arial Bold font ---
 FONT_PATH = "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf"
@@ -43,6 +53,8 @@ print(f"Fontgrootte op grote afbeelding: {font_size_large}")
 
 # --- Afbeeldingen met tekst aanmaken ---
 annotated = []
+ROTATION = -7  # graden, wijzerzin (clockwise)
+
 for name in first_names:
     img = base_img.resize((RECT_W_PX, RECT_H_PX), Image.LANCZOS)
     draw = ImageDraw.Draw(img)
@@ -52,11 +64,23 @@ for name in first_names:
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     
-    # Positie: -58px horizontaal, 10px omhoog (-10) van midden
-    x = PLATE_X1 + (PLATE_X2 - PLATE_X1 - text_w) / 2 - 58
-    y = PLATE_Y1 + (PLATE_Y2 - PLATE_Y1 - text_h) / 2 - 10
+    # Positie: -220px horizontaal, 40px naar beneden (-40) van midden
+    x = PLATE_X1 + (PLATE_X2 - PLATE_X1 - text_w) / 2 - 232
+    y = PLATE_Y1 + (PLATE_Y2 - PLATE_Y1 - text_h) / 2 + 15
     
-    draw.text((x, y), name, fill="black", font=f)
+    # Maak tekst op aparte laag voor rotatie
+    text_layer = Image.new("RGBA", (text_w + 40, text_h + 40), (0, 0, 0, 0))
+    text_draw = ImageDraw.Draw(text_layer)
+    text_draw.text((20, 20), name, fill="black", font=f)
+    
+    # Roteer tekst (wijzerzin = clockwise = negatief in PIL)
+    rotated_text = text_layer.rotate(ROTATION, resample=Image.Resampling.BICUBIC, expand=True)
+    
+    # Plaats op hoofdafbeelding
+    paste_x = int(x) - 20
+    paste_y = int(y) - 20
+    img.paste(rotated_text, (paste_x, paste_y), rotated_text)
+    
     annotated.append(img)
 
 # --- PDF opstellen: Landscape A4, 3 naast elkaar ---
