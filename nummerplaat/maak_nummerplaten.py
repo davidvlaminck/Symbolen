@@ -75,9 +75,11 @@ for name in first_names:
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     
-    # Positie: -258px horizontaal, +6px verticaal van midden (10% omhoog)
+    # Positie: -205px horizontaal, variabele hoogte op basis van naam lengte
+    # 4 letters: -126, 9 letters: -136 (lineair: -2px per letter)
+    y_offset = -126 - (len(name) - 4) * 2
     x = PLATE_X1 + (PLATE_X2 - PLATE_X1 - text_w) / 2 - 205
-    y = PLATE_Y1 + (PLATE_Y2 - PLATE_Y1 - text_h) / 2 - 136
+    y = PLATE_Y1 + (PLATE_Y2 - PLATE_Y1 - text_h) / 2 + y_offset
     
     # Maak tekst op aparte laag voor rotatie
     text_layer = Image.new("RGBA", (text_w + 40, text_h + 40), (0, 0, 0, 0))
