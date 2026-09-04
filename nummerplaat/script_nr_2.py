@@ -2,8 +2,11 @@
 """
 script_nr_2.py - Voeg een pagina met kaders toe na elke nummerplaat-pagina.
 
-De kaders op de lege pagina's matchen precies op de kaders van de nummerplaten,
-zodat ze als raster/hulplijnen kunnen dienen bij afknippen of plaatsen.
+De kader-pagina's hebben lege frames die exact matchen op de nummerplaat-kaders.
+Binnen elk kader staat:
+  - Bovenaan links: "mijn symbool" (Arial Bold, groot), gecentreerd in tekstvak
+  - Onderaan rechts: thematekst uit tekst.txt, gecentreerd in tekstvak
+Tekst is 90° tegenwijzerzin gedraaid.
 
 Gebruik:
     python3 script_nr_2.py
@@ -13,12 +16,12 @@ import io
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.font_manager import FontProperties
-from matplotlib.backends.backend_pdf import PdfPages
 from pypdf import PdfReader, PdfWriter
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_PDF = os.path.join(SCRIPT_DIR, "nummerplaten.pdf")
 OUTPUT_PDF = os.path.join(SCRIPT_DIR, "nummerplaten_met_kader_paginas.pdf")
+TEKST_TXT = os.path.join(SCRIPT_DIR, "tekst.txt")
 FONT_PATH = "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf"
 
 CM_TO_INCH = 0.393701
@@ -50,62 +53,59 @@ FRAME_POSITIONS = [
 
 def load_theme_text():
     """Read theme lines (lines 8-10) from tekst.txt."""
-    tekst_path = os.path.join(SCRIPT_DIR, "tekst.txt")
     theme_lines = []
-    if os.path.exists(tekst_path):
-        with open(tekst_path, "r", encoding="utf-8") as f:
+    if os.path.exists(TEKST_TXT):
+        with open(TEKST_TXT, "r", encoding="utf-8") as f:
             all_lines = [line.strip() for line in f if line.strip()]
-        # Lines after "mijn symbool" and "5 cm" headers
         in_theme = False
         for line in all_lines:
             if line == "Ons jaar thema:":
                 in_theme = True
+                theme_lines.append(line)
             elif in_theme:
                 theme_lines.append(line)
     return theme_lines
 
 
 def make_frame_only_page(theme_lines):
-    """Create a portrait A4 page with empty frames + rotated text.
-    Top: 'mijn symbool' (Arial Bold, groot). Bottom: theme text.
-    Tekst staat gedraaid 90° met de bovenkant links."""
+    """Create a portrait A4 page with 2 empty frames + rotated text inside each frame.
+    Text is rotated 90° CCW, centered within each frame.
+    "mijn symbool" in top half, theme text in bottom half."""
     fig = plt.figure(figsize=(PAGE_W_CM * CM_TO_INCH, PAGE_H_CM * CM_TO_INCH))
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, PAGE_W_CM)
     ax.set_ylim(PAGE_H_CM, 0)
     ax.axis("off")
 
+    top_font = FontProperties(fname=FONT_PATH, size=28)
+    bottom_font = FontProperties(fname=FONT_PATH, size=14)
+    theme_text = "\n".join(theme_lines)
+
     for fx, fy in FRAME_POSITIONS:
+        # Draw frame rectangle
         rect = Rectangle(
             (fx, fy), FRAME_W_CM, FRAME_H_CM,
             linewidth=3, edgecolor="black", facecolor="none"
         )
         ax.add_patch(rect)
 
-    # Top text: "mijn symbool" — rotated 90° CW (bovenkant links)
-    top_font = FontProperties(fname=FONT_PATH, size=24)
-    ax.text(
-        1.5, PAGE_W_CM / 2,
-        "mijn symbool",
-        fontproperties=top_font,
-        rotation=-90, ha="center", va="center",
-        color="black",
-    )
+        # "mijn symbool" — links in frame, gecentreerd in bovenste helft, 90° CCW
+        ax.text(
+            fx + 1.5, fy + FRAME_H_CM * 0.5,
+            "mijn symbool",
+            fontproperties=top_font,
+            rotation=90, ha="center", va="center",
+            color="black",
+        )
 
-    # Bottom text: theme lines — rotated 90° CW (bovenkant links)
-    bottom_font = FontProperties(fname=FONT_PATH, size=12)
-    # Position text block center near bottom-left
-    n = len(theme_lines)
-    block_height_cm = n * 0.5  # approx height of multi-line vertical text
-    text_y = PAGE_H_CM - 3.0 - block_height_cm / 2
-    theme_text = "\n".join(theme_lines)
-    ax.text(
-        1.5, text_y,
-        theme_text,
-        fontproperties=bottom_font,
-        rotation=-90, ha="center", va="center",
-        color="black",
-    )
+        # Theme tekst — rechts in frame, gecentreerd in onderste helft, 90° CCW
+        ax.text(
+            fx + FRAME_W_CM - 1.5, fy + FRAME_H_CM * 0.5,
+            theme_text,
+            fontproperties=bottom_font,
+            rotation=90, ha="center", va="center",
+            color="black",
+        )
 
     buf = io.BytesIO()
     fig.savefig(buf, format="pdf", dpi=DPI)
@@ -122,7 +122,6 @@ def main():
 
     for page in reader.pages:
         writer.add_page(page)
-        # Add frame-only page with frames + rotated text
         frame_reader = make_frame_only_page(theme_lines)
         writer.add_page(frame_reader.pages[0])
 
